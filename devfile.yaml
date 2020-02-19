@@ -3,7 +3,6 @@ metadata:
   name: che-machine-exec
 projects:
 - name: che-machine-exec
-  clonePath: src/github.com/eclipse/che-machine-exec
   source:
     type: git
     location: https://github.com/eclipse/che-machine-exec.git
@@ -31,7 +30,7 @@ components:
     memoryLimit: 3Gi
   - alias: dev
     type: dockerimage
-    image: eclipse/che-machine-exec-dev:next
+    image: quay.io/eclipse/che-golang-1.12:7.8.0
     mountSources: true
     endpoints:
       - name: exec-server
@@ -55,31 +54,25 @@ commands:
       - type: exec
         component: dev
         command: ./compile.sh
-        workdir: /projects/src/github.com/eclipse/che-machine-exec
+        workdir: /projects/che-machine-exec
   - name: test
     actions:
       - type: exec
         component: dev
         command: go test ./...
-        workdir: /projects/src/github.com/eclipse/che-machine-exec
+        workdir: /projects/che-machine-exec
   - name: format
     actions:
       - type: exec
         component: dev
         command: go fmt ./... && printf "\033[32mDone.\033[0m"
-        workdir: /projects/src/github.com/eclipse/che-machine-exec
-  - name: update dependencies
-    actions:
-      - type: exec
-        component: dev
-        command: dep ensure && printf "\033[32mDone.\033[0m"
-        workdir: /projects/src/github.com/eclipse/che-machine-exec
+        workdir: /projects/che-machine-exec
   - name: start exec server
     actions:
       - type: exec
         component: dev
         command: ./che-machine-exec --url 0.0.0.0:5555
-        workdir: /projects/src/github.com/eclipse/che-machine-exec
+        workdir: /projects/che-machine-exec
   - name: stop exec server
     actions:
       - type: exec
