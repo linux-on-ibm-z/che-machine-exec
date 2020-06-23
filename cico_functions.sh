@@ -34,21 +34,33 @@ function load_jenkins_vars() {
 }
 
 function check_buildx_support() {
+  export DOCKER_BUILD_KIT=1
+  export DOCKER_CLI_EXPERIMENTAL=enabled
+
   docker_version="$(docker --version | cut -d' ' -f3 | tr -cd '0-9.')"
-  if [[ "$(version "$docker_version")" < "$(version '19.03')" ]]; then
-    echo "CICO: Docker $docker_version is too old. Greater than or equal to 19.03 is required."
-    exit 1
-  fi
-
-  # Kernel
-  kernel_version="$(uname -r)"
-  if [[ "$(version "$kernel_version")" < "$(version '4.8')" ]]; then
-    echo "Kernel $kernel_version too old - need >= 4.8." \
-          " Install a newer kernel."
+  if [[ $(check_version "$docker_version" "19.03") != 19.03 ]]; then
+    echo >&2 "CICO: Docker $docker_version greater than or equal to 19.03 is required."
+    buildx="false"
   else
-    echo "kernel $kernel_version has binfmt_misc fix-binary (F) support."
+         # Kernel
+         kernel_version="$(uname -r)"
+         if [[ $(check_version "$kernel_version" "4.8") != "4.8" ]]; then
+                 echo >&2 "Kernel $kernel_version too old - need >= 4.8." \
+                         " Install a newer kernel."
+                 buildx="false"
+         else
+                 echo >&2 "kernel $kernel_version has binfmt_misc fix-binary (F) support."
+                 buildx="true"
+         fi
   fi
 
+  echo "$buildx"
+}
+
+function check_version() {
+  local query=$1
+  local target=$2
+  echo "$target" "$query" | tr ' ' '\n' | sort -V | head -n1 2> /dev/null
 }
 
 function install_deps() {
@@ -74,10 +86,6 @@ function install_deps() {
   echo 'CICO: Dependencies installed'
 }
 
-function version() {
-  printf '%02d' $(echo "$1" | tr . ' ' | sed -e 's/ 0*/ /g') 2>/dev/null
-}
-
 function set_release_tag() {
   # Let's obtain the tag based on the 
   # version defined in the 'VERSION' file
@@ -98,6 +106,31 @@ function set_git_commit_tag() {
 }
 
 function build_and_push() {
+  REGISTRY="quay.io"
+  DOCKERFILE="Dockerfile"
+  ORGANIZATION="eclipse"
+  IMAGE="che-machine-exec"
+
+  if [ -n "${QUAY_ECLIPSE_CHE_USERNAME}" ] && [ -n "${QUAY_ECLIPSE_CHE_PASSWORD}" ]; then
+    docker login -u "${QUAY_ECLIPSE_CHE_USERNAME}" -p "${QUAY_ECLIPSE_CHE_PASSWORD}" "${REGISTRY}"
+  else
+    echo "Could not login, missing credentials for pushing to the '${ORGANIZATION}' organization"
+  fi
+
+  # Let's build and push image to 'quay.io' using git commit hash as tag first
+  set_git_commit_tag
+  docker build -t ${IMAGE} -f ./build/dockerfiles/${DOCKERFILE} . | cat
+  tag_push "${REGISTRY}/${ORGANIZATION}/${IMAGE}:${GIT_COMMIT_TAG}"
+  echo "CICO: '${GIT_COMMIT_TAG}' version of images pushed to '${REGISTRY}/${ORGANIZATION}' organization"
+
+  # If additional tag is set (e.g. "nightly"), let's tag the image accordingly and also push to 'quay.io'
+  if [ -n "${TAG}" ]; then
+    tag_push "${REGISTRY}/${ORGANIZATION}/${IMAGE}:${TAG}"
+    echo "CICO: '${TAG}'  version of images pushed to '${REGISTRY}/${ORGANIZATION}' organization"
+  fi
+}
+
+function build_and_push_using_buildx() {
   REGISTRY="quay.io"
   DOCKERFILE="Dockerfile"
   ORGANIZATION="eclipse"

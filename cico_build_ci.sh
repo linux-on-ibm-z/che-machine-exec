@@ -23,4 +23,10 @@ export SCRIPT_DIR
 load_jenkins_vars
 install_deps
 check_buildx_support
-build_and_push
+buildx_check=$(check_buildx_support)
+export buildx_check
+if [[ $buildx_check = "true" ]]; then
+     build_and_push_using_buildx
+else
+     build_and_push
+fi
