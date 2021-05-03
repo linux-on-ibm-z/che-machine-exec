@@ -1,0 +1,37 @@
+branches:
+  only:
+  - travis-s390x
+
+os: linux
+dist: focal
+
+services:
+  - docker
+
+jobs:
+  include:
+    - stage:
+      name: "Build and push both short SHA tag and nightly tag on amd64"
+      os: linux
+      arch: amd64
+      env:
+        SHORT_SHA: $(git rev-parse --short HEAD)
+      stage:
+        script:
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - echo "$QUAY_PASSWORD" |docker login quay.io -u "$QUAY_USERNAME " --password-stdin
+        - docker build -f build/dockerfiles/Dockerfile -t quay.io/eclipse/che-machine-exec:nightly .
+        - docker tag quay.io/eclipse/che-machine-exec:nightly quay.io/eclipse/che-machine-exec:${SHORT_SHA}
+
+    - stage:
+      name: "Build and push both short SHA tag and nightly tag on s390x"
+      os: linux
+      arch: s390x
+      env:
+        SHORT_SHA: $(git rev-parse --short HEAD)
+      stage:
+        script:
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - echo "$QUAY_PASSWORD" |docker login quay.io -u "$QUAY_USERNAME " --password-stdin
+        - docker build -f build/dockerfiles/Dockerfile -t quay.io/eclipse/che-machine-exec:nightly .
+        - docker tag quay.io/eclipse/che-machine-exec:nightly quay.io/eclipse/che-machine-exec:${SHORT_SHA}
