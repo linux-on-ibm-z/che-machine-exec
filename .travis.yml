@@ -64,7 +64,7 @@ jobs:
 
    - &nightly-build
      stage: Build and push both short SHA tag and nightly tag
-     if: type = push AND branch = main AND env(TAG) = "nightly"
+     if: type = push AND branch = travis-test AND env(TAG) = "nightly"
      script:
        - bash .travis/build_image.sh
      name: Build image on amd64
@@ -83,7 +83,7 @@ jobs:
      arch: s390x
    
    - stage: Publish multiarch image with nightly & short_sha tag
-     if: type = push AND branch = main AND env(TAG) = "nightly"
+     if: type = push AND branch = travis-test AND env(TAG) = "nightly"
      script: bash .travis/publish_multiarch.sh
 
    - stage: Check existing tags
