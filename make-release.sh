@@ -32,7 +32,7 @@ BRANCH=${VERSION%.*}.x
 
 # if doing a .0 release, use main; if doing a .z release, use $BRANCH
 if [[ ${VERSION} == *".0" ]]; then
-  BASEBRANCH="main"
+  BASEBRANCH="travis-test"
 else
   BASEBRANCH="${BRANCH}"
 fi

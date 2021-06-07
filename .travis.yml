@@ -18,12 +18,12 @@ env:
    - RECREATE_TAGS=false
    - NO_COMMIT=''
    - REGISTRY=quay.io
-   - ORGANIZATION=eclipse
+   - ORGANIZATION=prabhav
    - IMAGE=che-machine-exec
 
 install:
   - git remote remove origin
-  - git remote add origin https://$GITHUB_TOKEN@github.com/eclipse-che/che-machine-exec.git
+  - git remote add origin https://$GITHUB_TOKEN@github.com/linux-on-ibm-z/che-machine-exec.git
   - export SHORT_SHA=$(git rev-parse --short HEAD)
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USERNAME " --password-stdin
