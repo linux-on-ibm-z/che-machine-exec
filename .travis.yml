@@ -37,6 +37,7 @@ jobs:
        - go get ${gobuild_args} ./...
      script:
      - |
+       set -e
        echo "" > coverage.txt
        export CHE_WORKSPACE_ID=test_id; go test -v ./... -coverprofile coverage.txt
        bash <(curl -s https://codecov.io/bash)
