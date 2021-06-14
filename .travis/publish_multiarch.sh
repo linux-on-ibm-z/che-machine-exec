@@ -1,5 +1,5 @@
 #!/bin/bash
-set +e
+set -e
 
 # Create amend with images built on individual architectures
 AMEND=""

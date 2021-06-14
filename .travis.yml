@@ -22,8 +22,7 @@ env:
    - IMAGE=che-machine-exec
 
 install:
-  - git remote remove origin
-  - git remote add origin https://$GITHUB_TOKEN@github.com/linux-on-ibm-z/che-machine-exec.git
+  - git remote set-url origin https://$GITHUB_TOKEN@github.com/linux-on-ibm-z/che-machine-exec.git
   - export SHORT_SHA=$(git rev-parse --short HEAD)
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USERNAME " --password-stdin
@@ -38,7 +37,6 @@ jobs:
        - go get ${gobuild_args} ./...
      script:
      - |
-       set +e
        echo "" > coverage.txt
        export CHE_WORKSPACE_ID=test_id; go test -v ./... -coverprofile coverage.txt
        bash <(curl -s https://codecov.io/bash)
@@ -138,10 +136,12 @@ jobs:
        - bash make-release.sh --version $TAG --tag-release $NO_COMMIT
      after_success:
        - |
+         set -e
          echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":white_check_mark: Che Machine Exec ${TAG} has been released: https://quay.io/eclipse/che-machine-exec:${TAG}\"}" > mattermost.json
          curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
 
      after_failure:
        - |
+         set -e
          echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":no_entry_sign: Che Machine Exec ${TAG} release has failed: https://github.com/eclipse-che/che-machine-exec/actions/workflows/release.yml\"}" > mattermost.json
          curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
