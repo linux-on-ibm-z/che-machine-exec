@@ -49,22 +49,21 @@ jobs:
      install: skip
      script: bash scripts/license.sh check
    - &unit-test
-     stage: Unit tests and Docker build PR
+     name: Unit tests and Docker build PR on amd64
      if: type = pull_request
      install: 
        - export GO111MODULE="on" 
        - go get ${gobuild_args} ./...
      script: bash .travis/pr_check.sh
-     name: PR check on amd64 
      arch: amd64
    - <<: *unit-test
-     name: PR check on arm64
+     name: Unit tests and Docker build PR on arm64
      arch: arm64
    - <<: *unit-test
-     name: PR check on ppc64le
+     name: Unit tests and Docker build PR on ppc64le
      arch: ppc64le
    - <<: *unit-test
-     name: PR check on s390x
+     name: Unit tests and Docker build PR on s390x
      arch: s390x
 
    - &next-build
