@@ -14,7 +14,8 @@ services:
 
 env:  
    global:
-   - TAG=nightly
+   - TAG=next
+   - TRAVIS_TAG=travis
    - RECREATE_TAGS=false
    - NO_COMMIT=''
    - REGISTRY=quay.io
@@ -61,32 +62,32 @@ jobs:
      name: PR check on s390x
      arch: s390x
 
-   - &nightly-build
-     stage: Build and push both short SHA tag and nightly tag
-     if: type = push AND branch = travis-test AND env(TAG) = "nightly"
+   - &next-build
+     stage: Build and push both short SHA tag and next tag
+     if: type = push AND branch = travis-test AND env(TAG) = "next"
      script:
        - bash .travis/build_image.sh
      name: Build image on amd64
      arch: amd64
 
-   - <<: *nightly-build
+   - <<: *next-build
      name: Build image on arm64
      arch: arm64
 
-   - <<: *nightly-build
+   - <<: *next-build
      name: Build image on ppc64le
      arch: ppc64le
 
-   - <<: *nightly-build
+   - <<: *next-build
      name: Build image on s390x
      arch: s390x
    
-   - stage: Publish multiarch image with nightly & short_sha tag
-     if: type = push AND branch = travis-test AND env(TAG) = "nightly"
+   - stage: Publish multiarch image with next & short_sha tag
+     if: type = push AND branch = travis-test AND env(TAG) = "next"
      script: bash .travis/publish_multiarch.sh
 
    - stage: Check existing tags
-     if: type = api AND env(TAG) != "nightly"
+     if: type = api AND env(TAG) != "next"
      arch: amd64
      script: 
      - |
@@ -107,7 +108,7 @@ jobs:
 
    - &release-build
      stage: Build images for release version
-     if: type = api AND env(TAG) != "nightly"
+     if: type = api AND env(TAG) != "next"
      script:
        - bash .travis/build_image.sh
      name: Build image on amd64
@@ -126,11 +127,11 @@ jobs:
      arch: s390x
 
    - stage: Publish multiarch image with release tag
-     if: type = api AND env(TAG) != "nightly"
+     if: type = api AND env(TAG) != "next"
      script: bash .travis/publish_multiarch.sh
 
    - stage: Tag release and notify on mattermost
-     if: type = api AND env(TAG) != "nightly"
+     if: type = api AND env(TAG) != "next"
      script: 
        - git config --global user.name "Mykhailo Kuznietsov"
        - git config --global user.email "mkuznets@redhat.com"
