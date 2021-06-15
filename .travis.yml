@@ -30,18 +30,6 @@ install:
 
 jobs:
   include:
-   - stage: Code Coverage Report
-     if: type = push
-     arch: amd64
-     install: 
-       - export GO111MODULE="on" 
-       - go get ${gobuild_args} ./...
-     script:
-     - |
-       echo "" > coverage.txt
-       export CHE_WORKSPACE_ID=test_id; go test -v ./... -coverprofile coverage.txt
-       bash <(curl -s https://codecov.io/bash)
-
    - stage: PR Check
      if: type = pull_request
      name: Check Eclipse license headers
@@ -66,24 +54,32 @@ jobs:
      name: Unit tests and Docker build PR on s390x
      arch: s390x
 
+   - stage: Che Machine Exec
+     name: Code Coverage Report
+     if: type = push
+     arch: amd64
+     install: 
+       - export GO111MODULE="on" 
+       - go get ${gobuild_args} ./...
+     script:
+     - |
+       echo "" > coverage.txt
+       export CHE_WORKSPACE_ID=test_id; go test -v ./... -coverprofile coverage.txt
+       bash <(curl -s https://codecov.io/bash)
    - &next-build
-     stage: Build and push both short SHA tag and next tag
+     name: Build and push both short SHA tag and next tag on amd64
      if: type = push AND branch = travis-test AND env(TAG) = "next"
      script:
        - bash .travis/build_image.sh
-     name: Build image on amd64
      arch: amd64
-
    - <<: *next-build
-     name: Build image on arm64
+     name: Build and push both short SHA tag and next tag on arm64
      arch: arm64
-
    - <<: *next-build
-     name: Build image on ppc64le
+     name: Build and push both short SHA tag and next tag on ppc64le
      arch: ppc64le
-
    - <<: *next-build
-     name: Build image on s390x
+     name: Build and push both short SHA tag and next tag on s390x
      arch: s390x
    
    - stage: Publish multiarch image with next & short_sha tag
