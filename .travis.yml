@@ -16,101 +16,84 @@ env:
    global:
    - TAG=next
    - TRAVIS_TAG=travis
-   - RECREATE_TAGS=false
-   - NO_COMMIT=''
    - REGISTRY=quay.io
    - ORGANIZATION=prabhav
    - IMAGE=che-machine-exec
 
 install:
-  - git remote set-url origin https://$GITHUB_TOKEN@github.com/linux-on-ibm-z/che-machine-exec.git
   - export SHORT_SHA=$(git rev-parse --short HEAD)
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - echo "$QUAY_PASSWORD" | docker login quay.io -u "$QUAY_USERNAME " --password-stdin
 
 jobs:
   include:
-   - stage: PR Check
+   - &docker-build-pr
+     stage: PR Check
      if: type = pull_request
-     name: Check Eclipse license headers
-     arch: amd64
+     name: Check docker build on amd64
      install: skip
-     script: bash scripts/license.sh check
-   - &unit-test
-     name: Unit tests and Docker build PR on amd64
-     if: type = pull_request
-     install: 
-       - export GO111MODULE="on" 
-       - go get ${gobuild_args} ./...
-     script: bash .travis/pr_check.sh
-     arch: amd64
-   - <<: *unit-test
-     name: Unit tests and Docker build PR on arm64
+     script: docker build -f build/dockerfiles/Dockerfile -t "${REGISTRY}/${ORGANIZATION}/${IMAGE}:pr-check-${TRAVIS_CPU_ARCH}" .
+   - <<: *docker-build-pr
+     name: Check docker build on arm64
      arch: arm64
-   - <<: *unit-test
-     name: Unit tests and Docker build PR on ppc64le
+   - <<: *docker-build-pr
+     name: Check docker build on ppc64le
      arch: ppc64le
-   - <<: *unit-test
-     name: Unit tests and Docker build PR on s390x
+   - <<: *docker-build-pr
+     name: check docker build PR on s390x
      arch: s390x
 
-   - stage: Che Machine Exec
-     name: Code Coverage Report
-     if: type = push
-     arch: amd64
+   - &unit-test
+     name: Run unit tests on amd64
+     if: type = pull_request
      install: 
        - export GO111MODULE="on" 
        - go get ${gobuild_args} ./...
      script:
      - |
-       echo "" > coverage.txt
-       export CHE_WORKSPACE_ID=test_id; go test -v ./... -coverprofile coverage.txt
-       bash <(curl -s https://codecov.io/bash)
+       CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -ldflags '-w -s' -a -installsuffix cgo -o che-machine-exec .
+       export CHE_WORKSPACE_ID=test_id
+       go test ./... -test.v
+     arch: amd64
+   - <<: *unit-test
+     name: Run unit tests on arm64
+     arch: arm64
+   - <<: *unit-test
+     name: Run unit tests on ppc64le
+     arch: ppc64le
+   - <<: *unit-test
+     name: Run unit tests on s390x
+     arch: s390x
+
    - &next-build
-     name: Build and push both short SHA tag and next tag on amd64
+     stage: Build and push both short SHA tag and next tag
+     name: Build image on amd64
      if: type = push AND branch = travis-test AND env(TAG) = "next"
      script:
        - bash .travis/build_image.sh
      arch: amd64
    - <<: *next-build
-     name: Build and push both short SHA tag and next tag on arm64
+     name: Build image on arm64
      arch: arm64
    - <<: *next-build
-     name: Build and push both short SHA tag and next tag on ppc64le
+     name: Build image on ppc64le
      arch: ppc64le
    - <<: *next-build
-     name: Build and push both short SHA tag and next tag on s390x
+     name: Build image on s390x
      arch: s390x
    
    - stage: Publish multiarch image with next & short_sha tag
      if: type = push AND branch = travis-test AND env(TAG) = "next"
      script: bash .travis/publish_multiarch.sh
 
-   - stage: Check existing tags
-     if: type = api AND env(TAG) != "next"
-     arch: amd64
-     script: 
-     - |
-       set +e
-       VERSION=$TAG
-       EXISTING_TAG=$(git ls-remote --exit-code origin refs/tags/${VERSION})
-       if [[ -n ${EXISTING_TAG} ]]; then
-          if [[ ${RECREATE_TAGS} == "true" ]]; then
-            echo "[INFO] Removing tag for ${VERSION} version. New tag will be recreated during release."
-            git push origin :$VERSION
-          else
-            echo "[ERROR] Cannot proceed with release - tag ${EXISTING_TAG} already exists."
-            exit 1
-          fi
-       else
-          echo "[INFO] No existing tags detected for $VERSION"
-       fi
-
    - &release-build
      stage: Build images for release version
      if: type = api AND env(TAG) != "next"
-     script:
-       - bash .travis/build_image.sh
+     script: 
+     - |
+       BRANCH=${TAG%.*}.x
+       git checkout "${BRANCH}"
+       bash .travis/build_image.sh
      name: Build image on amd64
      arch: amd64
 
@@ -129,21 +112,3 @@ jobs:
    - stage: Publish multiarch image with release tag
      if: type = api AND env(TAG) != "next"
      script: bash .travis/publish_multiarch.sh
-
-   - stage: Tag release and notify on mattermost
-     if: type = api AND env(TAG) != "next"
-     script: 
-       - git config --global user.name "Mykhailo Kuznietsov"
-       - git config --global user.email "mkuznets@redhat.com"
-       - bash make-release.sh --version $TAG --tag-release $NO_COMMIT
-     after_success:
-       - |
-         set -e
-         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":white_check_mark: Che Machine Exec ${TAG} has been released: https://quay.io/eclipse/che-machine-exec:${TAG}\"}" > mattermost.json
-         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
-
-     after_failure:
-       - |
-         set -e
-         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":no_entry_sign: Che Machine Exec ${TAG} release has failed: https://github.com/eclipse-che/che-machine-exec/actions/workflows/release.yml\"}" > mattermost.json
-         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
