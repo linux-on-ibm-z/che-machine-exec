@@ -68,7 +68,7 @@ jobs:
    - &next-build
      stage: Build and push both short SHA tag and next tag
      name: Build image on amd64
-     if: type = push AND branch = travis-test AND env(TAG) = "next"
+     if: type = push AND branch = travis AND env(TAG) = "next"
      script:
        - bash .travis/build_image.sh
      arch: amd64
@@ -91,6 +91,7 @@ jobs:
      if: type = api AND env(TAG) != "next"
      script: 
      - |
+       git branch
        BRANCH=${TAG%.*}.x
        git checkout "${BRANCH}"
        bash .travis/build_image.sh
