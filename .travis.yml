@@ -83,7 +83,7 @@ jobs:
      arch: s390x
    
    - stage: Publish multiarch image with next & short_sha tag
-     if: type = push AND branch = travis-test AND env(TAG) = "next"
+     if: type = push AND branch = travis AND env(TAG) = "next"
      script: bash .travis/publish_multiarch.sh
 
    - &release-build
