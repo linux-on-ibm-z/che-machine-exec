@@ -31,6 +31,7 @@ jobs:
      stage: PR Check
      if: type = pull_request
      name: Check docker build on amd64
+     arch: amd64
      install: skip
      script: docker build -f build/dockerfiles/Dockerfile -t "${REGISTRY}/${ORGANIZATION}/${IMAGE}:pr-check-${TRAVIS_CPU_ARCH}" .
    - <<: *docker-build-pr
@@ -45,16 +46,16 @@ jobs:
 
    - &unit-test
      name: Run unit tests on amd64
+     arch: amd64
      if: type = pull_request
      install: 
        - export GO111MODULE="on" 
        - go get ${gobuild_args} ./...
      script:
-     - |
-       CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -ldflags '-w -s' -a -installsuffix cgo -o che-machine-exec .
-       export CHE_WORKSPACE_ID=test_id
-       go test ./... -test.v
-     arch: amd64
+       - |
+         CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -ldflags '-w -s' -a -installsuffix cgo -o che-machine-exec .
+         export CHE_WORKSPACE_ID=test_id
+         go test ./... -test.v
    - <<: *unit-test
      name: Run unit tests on arm64
      arch: arm64
@@ -68,10 +69,10 @@ jobs:
    - &next-build
      stage: Build and push both short SHA tag and next tag
      name: Build image on amd64
+     arch: amd64
      if: type = push AND branch = travis AND env(TAG) = "next"
      script:
        - bash .travis/build_image.sh
-     arch: amd64
    - <<: *next-build
      name: Build image on arm64
      arch: arm64
@@ -88,15 +89,20 @@ jobs:
 
    - &release-build
      stage: Build images for release version
-     if: type = api AND env(TAG) != "next"
-     script: 
-     - |
-       git branch
-       BRANCH=${TAG%.*}.x
-       git checkout "${BRANCH}"
-       bash .travis/build_image.sh
      name: Build image on amd64
      arch: amd64
+     if: type = api AND env(TAG) != "next"
+     script: 
+       - |
+         git branch
+         BRANCH=${TAG%.*}.x
+         git checkout "${BRANCH}"
+         bash .travis/build_image.sh
+     after_failure:
+       - |
+         set -e
+         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":no_entry_sign: Che Machine Exec ${TAG}-${TRAVIS_TAG} release has failed: https://github.com/eclipse-che/che-machine-exec/actions/workflows/release.yml\"}" > mattermost.json
+         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
 
    - <<: *release-build
      name: Build image on arm64
@@ -113,3 +119,22 @@ jobs:
    - stage: Publish multiarch image with release tag
      if: type = api AND env(TAG) != "next"
      script: bash .travis/publish_multiarch.sh
+     after_success:
+       - |
+         set -e
+         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":white_check_mark: Che Machine Exec ${TAG}-${TRAVIS_TAG} has been released: https://quay.io/eclipse/che-machine-exec:${TAG}-${TRAVIS_TAG}\"}" > mattermost.json
+         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
+     after_failure:
+       - |
+         set -e
+         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":no_entry_sign: Che Machine Exec ${TAG}-${TRAVIS_TAG} release has failed: https://github.com/eclipse-che/che-machine-exec/actions/workflows/release.yml\"}" > mattermost.json
+         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
+     
+  fast_finish: true
+  allow_failures:
+   - if: type = pull_request
+     arch: arm64
+   - if: type = pull_request
+     arch: ppc64le
+   - if: type = pull_request
+     arch: s390x
