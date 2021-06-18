@@ -107,22 +107,14 @@ jobs:
          BRANCH=${TAG%.*}.x
          git checkout "${BRANCH}"
          bash .travis/build_image.sh
-     after_failure:
-       - |
-         set -e
-         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":no_entry_sign: Che Machine Exec ${TAG}-${TRAVIS_TAG} release has failed: https://github.com/eclipse-che/che-machine-exec/actions/workflows/release.yml\"}" > mattermost.json
-         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
-
    - <<: *release-build
      name: Build image on arm64
      arch: arm64
-
    - <<: *release-build
      name: Build image on ppc64le
      arch: ppc64le
      script:
        - bash -c "exit 1"
-
    - <<: *release-build
      name: Build image on s390x
      arch: s390x
