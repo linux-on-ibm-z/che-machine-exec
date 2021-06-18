@@ -111,6 +111,7 @@ jobs:
    - <<: *release-build
      name: Build image on ppc64le
      arch: ppc64le
+     script: exit 1
 
    - <<: *release-build
      name: Build image on s390x
