@@ -126,11 +126,9 @@ jobs:
      script: bash .travis/publish_multiarch.sh
      after_success:
        - |
-         set -e
          echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":white_check_mark: Che Machine Exec ${TAG}-${TRAVIS_TAG} has been released: https://quay.io/eclipse/che-machine-exec:${TAG}-${TRAVIS_TAG}\"}" > mattermost.json
          curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
      after_failure:
        - |
-         set -e
          echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":no_entry_sign: Che Machine Exec ${TAG}-${TRAVIS_TAG} release has failed: https://github.com/eclipse-che/che-machine-exec/actions/workflows/release.yml\"}" > mattermost.json
          curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
