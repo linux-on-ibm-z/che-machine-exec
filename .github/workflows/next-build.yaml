@@ -43,3 +43,26 @@ jobs:
         tags: |
           quay.io/eclipse/che-machine-exec:next
           quay.io/eclipse/che-machine-exec:${{ steps.vars.outputs.sha_short }}
+
+  travis-build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+    - name: Checkout che-machine-exec source code
+      uses: actions/checkout@v2
+    - name: Trigger build on Travis CI
+      run: |
+        body="{
+        \"request\":{
+        \"branch\":\"travis-s390x\"
+        }}"
+
+        echo $body
+
+        curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -H "Travis-API-Version: 3" \
+        -H "Authorization: token ${{ secrets.TRAVIS_TOKEN }}" \
+        -d "$body" \
+        https://api.travis-ci.com/repo/linux-on-ibm-z%2Fche-machine-exec/requests

@@ -19,6 +19,7 @@ env:
    - REGISTRY=quay.io
    - ORGANIZATION=prabhav
    - IMAGE=che-machine-exec
+   - PULL_REQUEST=false
 
 install:
   - export SHORT_SHA=$(git rev-parse --short HEAD)
@@ -28,17 +29,17 @@ install:
 jobs:
   fast_finish: true
   allow_failures:
-   - if: type = pull_request
+   - if: env(PULL_REQUEST) = true
      arch: arm64
-   - if: type = pull_request
+   - if: env(PULL_REQUEST) = true
      arch: ppc64le
-   - if: type = pull_request
+   - if: env(PULL_REQUEST) = true
      arch: s390x
    - stage: Release che-machine-exec
   include:
    - &docker-build-pr
      stage: PR Check
-     if: type = pull_request
+     if: type = api and env(PULL_REQUEST) = true
      name: Check docker build on amd64
      arch: amd64
      install: skip
@@ -56,7 +57,7 @@ jobs:
    - &unit-test
      name: Run unit tests on amd64
      arch: amd64
-     if: type = pull_request
+     if: type = api and env(PULL_REQUEST) = true
      install: 
        - export GO111MODULE="on" 
        - go get ${gobuild_args} ./...
@@ -79,7 +80,7 @@ jobs:
      stage: Build and push both short SHA tag and next tag
      name: Build image on amd64
      arch: amd64
-     if: type = push AND branch = travis AND env(TAG) = "next"
+     if: type = api AND branch = travis AND env(TAG) = "next"
      script:
        - bash .travis/build_image.sh
    - <<: *next-build
@@ -93,7 +94,7 @@ jobs:
      arch: s390x
    
    - stage: Publish multiarch image with next & short_sha tag
-     if: type = push AND branch = travis AND env(TAG) = "next"
+     if: type = api AND branch = travis AND env(TAG) = "next"
      script: bash .travis/publish_multiarch.sh
 
    - &release-build
@@ -113,22 +114,10 @@ jobs:
    - <<: *release-build
      name: Build image on ppc64le
      arch: ppc64le
-     script:
-       - bash -c "exit 1"
    - <<: *release-build
      name: Build image on s390x
      arch: s390x
-     script:
-       - bash -c "exit 1"
 
    - stage: Publish multiarch image with release tag
      if: type = api AND env(TAG) != "next"
      script: bash .travis/publish_multiarch.sh
-     after_success:
-       - |
-         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":white_check_mark: Che Machine Exec ${TAG}-${TRAVIS_TAG} has been released: https://quay.io/eclipse/che-machine-exec:${TAG}-${TRAVIS_TAG}\"}" > mattermost.json
-         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
-     after_failure:
-       - |
-         echo "{\"username\":\"che-bot\",\"channel\":\"eclipse-che-releases\",\"text\":\":no_entry_sign: Che Machine Exec ${TAG}-${TRAVIS_TAG} release has failed: https://github.com/eclipse-che/che-machine-exec/actions/workflows/release.yml\"}" > mattermost.json
-         curl -i -X POST -H 'Content-Type: application/json' -d @mattermost.json $MATTERMOST_WEBHOOK_URL
